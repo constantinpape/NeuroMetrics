@@ -103,4 +103,3 @@ std::pair<double, double> fscore(
 
     return std::pair<double, double>(ri, f_score);
 }
-

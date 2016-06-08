@@ -1,25 +1,15 @@
 #--------------------------------------------------------------
-# default build-type (release)
+# NeuroMetrics
 #--------------------------------------------------------------
-IF(DEFINED CMAKE_BUILD_TYPE)
-   SET(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
-ELSE()
-   SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
-ENDIF()
-
-#--------------------------------------------------------------
-# skneuro
-#--------------------------------------------------------------
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.3)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 include(CMakeCopyIfDifferent)
-project(skneuro)
+project(NeuroMetrics)
 
 #--------------------------------------------------------------
 # c++ 11
 #--------------------------------------------------------------
 SET(CMAKE_CXX_FLAGS "-std=c++0x")
-
 
 #--------------------------------------------------------------
 # global headers
@@ -39,34 +29,14 @@ include_directories(${VIGRA_INCLUDE_DIR})
 FIND_PACKAGE(NUMPY REQUIRED)
 include_directories(${PYTHON_NUMPY_INCLUDE_DIR})
 
-
 #--------------------------------------------------------------
-# Boost
+# Boost and Python
 #--------------------------------------------------------------
-message(STATUS "build with Boost")
-find_package(Boost 1.47 REQUIRED)
-find_package(Boost COMPONENTS python REQUIRED)
-add_definitions(-DWITH_BOOST)
-include_directories(${Boost_INCLUDE_DIR})
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
-
-#--------------------------------------------------------------
-# Python Lib
-#--------------------------------------------------------------
-find_package (PythonLibs REQUIRED)
-include_directories(
-    ${PYTHON_INCLUDE_DIRS}
-    ${PYTHON_NUMPY_INCLUDE_DIR}
-    ${Boost_INCLUDE_DIR}
-    ${Boost_PYTHON_INCLUDE_DIR}
-)
-
+FIND_PACKAGE(PythonInterp)
+FIND_PACKAGE(PythonLibs)
+FIND_PACKAGE(Boost COMPONENTS python)
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
+LINK_LIBRARIES(${Boost_LIBRARIES} ${PYTHON_LIBRARIES}) # Deprecated but so convenient!
 
 #--------------------------------------------------------------
 # add python to project tree
