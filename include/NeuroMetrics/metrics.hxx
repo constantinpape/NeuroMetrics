@@ -273,7 +273,12 @@ double NeuroMetrics::viPrecision()
         throw std::runtime_error("Need to call computeContingencyTable first");
     if(!hasViPrimitives)
         computeViPrimitives();
-    //return ( -1.*viA - (sumB - sumAB) / (-1.*viA);
+    if(viA == 0.) {
+        return 0.;
+    }
+    if(viB == 0.) {
+        return 1.;
+    }
     return ( viA + viB - viAB) / viA;
 }
 
@@ -283,6 +288,12 @@ double NeuroMetrics::viRecall()
         throw std::runtime_error("Need to call computeContingencyTable first");
     if(!hasViPrimitives)
         computeViPrimitives();
+    if(viA == 0.) {
+        return 1.;
+    }
+    if(viB == 0.) {
+        return 0.;
+    }
     return (viB + viA - viAB) / viB;
 }
 
