@@ -1,10 +1,9 @@
 #pragma once
 
-#include <map>
-#include <utility> // pair
-#include <iterator> // iterator_traits
-#include <cmath> // log
-#include <stdexcept> // runtime_error
+#include <vector>
+#include <iterator>
+#include <cmath>
+#include <stdexcept>
 
 namespace neurometrics {
 
@@ -157,7 +156,6 @@ void NeuroMetrics::computeRandPrimitives()
     }
     
     // sum of square of cols
-    double sumB = 0.;
     for( size_t j = 0; j < colSum.size(); j++ )
     {
         randB += colSum[j] * colSum[j];
