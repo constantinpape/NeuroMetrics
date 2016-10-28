@@ -1,68 +1,30 @@
-// boost python related
-#include <boost/python.hpp>
-
-#include <numpy/arrayobject.h>
-#include <numpy/noprefix.h>
-
-// vigra numpy array converters
-#include <vigra/numpy_array.hxx>
-#include <vigra/numpy_array_converters.hxx>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include <NeuroMetrics/metrics.hxx>
+#include <NeuroMetrics/converter.hxx>
 
-namespace bp = boost::python;
+namespace py = pybind11;
 
 namespace neurometrics {
 
-template<class T>
-class PyNeuroMetrics : public NeuroMetrics {
-    
-    typedef NeuroMetrics Base;
-
-public:
-    void computeContingecyTable(
-        vigra::NumpyArray<1, T> segA,
-        vigra::NumpyArray<1, T> segB)
-    {
-        Base::computeContingecyTable(segA.begin(), segA.end(), segB.begin(), segB.end());
-    }
-
-    double randIndex() {
-        return Base::randIndex();
-    }
-    double randScore() {
-        return Base::randScore();
-    }
-    double randPrecision() {
-        return Base::randPrecision();
-    }
-    double randRecall() {
-        return Base::randRecall();
-    }
-    
-    double variationOfInformation() {
-        return Base::variationOfInformation();
-    }
-    double viScore() {
-        return Base::viScore();
-    }
-    double viPrecision() {
-        return Base::viPrecision();
-    }
-    double viRecall() {
-        return Base::viRecall();
-    }
-
-};
-
 
 template<class T>
-void exportMetricsT(){
+void exportMetricsT(py::module & metricsModule){
 
-    typedef PyNeuroMetrics<T> Metrics;
+    typedef NeuroMetrics Metrics;
 
-    bp::class_<Metrics>("Metrics")
-        .def("computeContingencyTable",vigra::registerConverters(&Metrics::computeContingecyTable))
+    py::class_<Metrics>(metricsModule,"Metrics")
+        .def(py::init<>())
+        .def("computeContingencyTable",[](Metrics & self, 
+            andres::PyView<T,1> segA,
+            andres::PyView<T,1> segB){
+                {
+                    py::gil_scoped_release allowThreads;
+                    self.computeContingecyTable(segA.begin(), segA.end(), segB.begin(), segB.end());
+                }
+        })
         .def("randIndex", &Metrics::randIndex)
         .def("randScore", &Metrics::randScore)
         .def("randPrecision", &Metrics::randPrecision)
@@ -75,21 +37,12 @@ void exportMetricsT(){
         
 }
 
-} // namespace neurometrics
+void exportMetrics(py::module & metricsModule) {
 
-
-BOOST_PYTHON_MODULE(NeuroMetrics) {
-
-    // Do not change next 4 lines
-    import_array(); 
-    vigra::import_vigranumpy();
-    boost::python::numeric::array::set_module_and_type("numpy", "ndarray");
-    boost::python::docstring_options docstringOptions(true,true,false);
-    // No not change 4 line above
-    
-    // FIXME overloading does not work!
-    //neurometrics::exportMetricsT<vigra::UInt16>();
-    neurometrics::exportMetricsT<vigra::UInt32>();
-    //neurometrics::exportMetricsT<vigra::UInt64>();
+    //neurometrics::exportMetricsT<uint16_t>(metricsModule);
+    neurometrics::exportMetricsT<uint32_t>(metricsModule);
+    //neurometrics::exportMetricsT<uint64_t>(metricsModule);
 }
 
+
+} // namespace neurometrics

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <stdexcept>
 
+#include <andres/marray.hxx>
+
 namespace neurometrics {
 
 // bundle all metrics that can be computed from the contingency table
@@ -15,7 +17,8 @@ class NeuroMetrics {
 public:
     
     // TODO use marray here
-    typedef std::vector<std::vector<double>> ContingencyTable;
+    //typedef std::vector<std::vector<double>> ContingencyTable;
+    typedef andres::Marray<double> ContingencyTable;
     
     // constructor
     NeuroMetrics();
@@ -105,7 +108,8 @@ void NeuroMetrics::computeContingecyTable(
     size_t nLabelsB = *( std::max_element( segBBegin, segBEnd ) ) + 1;
 
     // init the contingency matrix 
-    contingencyTable.assign(nLabelsA, std::vector<double>(nLabelsB, 0) );
+    size_t shape[] = {nLabelsA,nLabelsB};
+    contingencyTable.resize(shape, shape+2, 0.);
 
     // compute the contingency matrix
     ITERATOR_0 segA_it = segABegin;
@@ -114,26 +118,26 @@ void NeuroMetrics::computeContingecyTable(
     {
         Label0 i = *( segA_it );
         Label1 j = *( segB_it );
-        contingencyTable[i][j]++;
+        contingencyTable(i,j)++;
     }
     
     // compute the sum of rows
-    rowSum.assign( contingencyTable.size(), 0.);
+    rowSum.assign( contingencyTable.shape(0), 0.);
     for( size_t i = 1; i < rowSum.size(); i++ )
     {
-        for( size_t j = 0; j < contingencyTable[0].size(); j++ )
+        for( size_t j = 0; j < contingencyTable.shape(1); j++ )
         {
-            rowSum[i] += contingencyTable[i][j];
+            rowSum[i] += contingencyTable(i,j);
         }
     }
     
     // compute the sum of cols
-    colSum.assign(contingencyTable[0].size(), 0.);
+    colSum.assign(contingencyTable.shape(1), 0.);
     for( size_t j = 1; j < colSum.size(); j++ )
     {
-        for( size_t i = 1; i < contingencyTable.size(); i++ )
+        for( size_t i = 1; i < contingencyTable.shape(0); i++ )
         {
-            colSum[j] += contingencyTable[i][j];
+            colSum[j] += contingencyTable(i,j);
         }
     }
 
@@ -144,9 +148,9 @@ void NeuroMetrics::computeContingecyTable(
 void NeuroMetrics::computeRandPrimitives()
 {
     double aux = 0.;
-    for( size_t i = 1; i < contingencyTable.size() ; i++)
+    for( size_t i = 1; i < contingencyTable.shape(0) ; i++)
     {
-        aux += contingencyTable[i][0];
+        aux += contingencyTable(i,0);
     }
 
     // sum of square of rows
@@ -163,11 +167,11 @@ void NeuroMetrics::computeRandPrimitives()
 
     randB += aux / n;
 
-    for( size_t i = 1; i < contingencyTable.size(); i++ )
+    for( size_t i = 1; i < contingencyTable.shape(0); i++ )
     {
-        for( size_t j = 1; j < contingencyTable[0].size(); j++ )
+        for( size_t j = 1; j < contingencyTable.shape(1); j++ )
         {
-            randAB += contingencyTable[i][j] * contingencyTable[i][j];
+            randAB += contingencyTable(i,j) * contingencyTable(i,j);
         }
     }
 
@@ -220,9 +224,9 @@ double NeuroMetrics::randScore()
 void NeuroMetrics::computeViPrimitives() {
     
     double aux = 0.;
-    for( size_t i = 1; i < contingencyTable.size() ; i++)
+    for( size_t i = 1; i < contingencyTable.shape(0) ; i++)
     {
-        aux += contingencyTable[i][0];
+        aux += contingencyTable(i,0);
     }
     aux /= n;
 
@@ -242,12 +246,12 @@ void NeuroMetrics::computeViPrimitives() {
 
     viB -= aux * log(n);
 
-    for( size_t i = 1; i < contingencyTable.size(); i++ )
+    for( size_t i = 1; i < contingencyTable.shape(0); i++ )
     {
-        for( size_t j = 1; j < contingencyTable[0].size(); j++ )
+        for( size_t j = 1; j < contingencyTable.shape(1); j++ )
         {
-            if( (contingencyTable[i][j] / n) != 0)
-                viAB += (contingencyTable[i][j] / n) * log(contingencyTable[i][j] / n);
+            if( (contingencyTable(i,j) / n) != 0)
+                viAB += (contingencyTable(i,j) / n) * log(contingencyTable(i,j) / n);
         }
     }
 

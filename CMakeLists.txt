@@ -17,26 +17,16 @@ SET(CMAKE_CXX_FLAGS "-std=c++0x")
 file(GLOB_RECURSE headers include/*.hxx)
 include_directories(include)
 
-#--------------------------------------------------------------
-# vigra
-#--------------------------------------------------------------
-FIND_PACKAGE(VIGRA REQUIRED)
-include_directories(${VIGRA_INCLUDE_DIR})
+#
+# PYBIND
+#
+include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/pybind11/include")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/pybind11")
 
-#--------------------------------------------------------------
-# numpy
-#--------------------------------------------------------------
-FIND_PACKAGE(NUMPY REQUIRED)
-include_directories(${PYTHON_NUMPY_INCLUDE_DIR})
-
-#--------------------------------------------------------------
-# Boost and Python
-#--------------------------------------------------------------
-FIND_PACKAGE(PythonInterp)
-FIND_PACKAGE(PythonLibs)
-FIND_PACKAGE(Boost COMPONENTS python)
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
-LINK_LIBRARIES(${Boost_LIBRARIES} ${PYTHON_LIBRARIES}) # Deprecated but so convenient!
+#
+# MARRAY
+#
+include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/marray/include")
 
 #--------------------------------------------------------------
 # add python to project tree
