@@ -7,17 +7,19 @@
 
 #include <andres/marray.hxx>
 
+#include "NeuroMetrics/tools/for_each_coordinate.hxx"
+#include "NeuroMetrics/tools/parallel_max_element.hxx"
+
 namespace neurometrics {
 
 // bundle all metrics that can be computed from the contingency table
 // -> need to calculate it only once
 // TODO ignore label 0 for gt is hardcoded, make it accessible!
+template<unsigned DIM, class T>
 class NeuroMetrics {
 
 public:
     
-    // TODO use marray here
-    //typedef std::vector<std::vector<double>> ContingencyTable;
     typedef andres::Marray<double> ContingencyTable;
     
     // constructor
@@ -26,8 +28,9 @@ public:
     // interface
     
     // compute contingency table
-    template<class ITERATOR_0, class ITERATOR_1>
-    void computeContingecyTable(ITERATOR_0, ITERATOR_0, ITERATOR_1, ITERATOR_1);
+    void computeContingecyTable(const andres::View<T> &, const andres::View<T> &);
+    // parallel version, not debugged yet! hence not exposed to python
+    void computeContingecyTable(const andres::View<T> &, const andres::View<T> &, const int);
 
     // rand measures
     // implementations adapted from
@@ -80,7 +83,8 @@ private:
 
 // implementation
 
-NeuroMetrics::NeuroMetrics()
+template<unsigned DIM, class T>
+NeuroMetrics<DIM,T>::NeuroMetrics()
     : hasContingencyTable(false), hasRandPrimitives(false), hasViPrimitives(false),
     n(0), contingencyTable(),
     rowSum(), colSum(),
@@ -88,44 +92,41 @@ NeuroMetrics::NeuroMetrics()
     viA(0), viB(0), viAB(0)
 {}
 
-template<class ITERATOR_0, class ITERATOR_1>
-void NeuroMetrics::computeContingecyTable(
-        ITERATOR_0 segABegin,
-        ITERATOR_0 segAEnd,
-        ITERATOR_1 segBBegin,
-        ITERATOR_1 segBEnd)
+template<unsigned DIM, class T>
+void NeuroMetrics<DIM,T>::computeContingecyTable(
+        const andres::View<T> & segA,
+        const andres::View<T> & segB
+        )
 {
-    // typedefs
-    typedef typename std::iterator_traits<ITERATOR_0>::value_type Label0;
-    typedef typename std::iterator_traits<ITERATOR_1>::value_type Label1;
+
+    typedef std::array<int64_t,DIM> Coord;
     
-    n = std::distance(segABegin, segAEnd);
+    n = 1;
+    Coord shape;
+    for(size_t d = 0; d < DIM; ++d) {
+        shape[d] = segA.shape(d);
+        n *= shape[d];
+    }
 
-    if ( n != std::distance(segBBegin, segBEnd) )
-        throw std::runtime_error("Segmentation sizes do not match!");
-
-    size_t nLabelsA = *( std::max_element( segABegin, segAEnd ) ) + 1;
-    size_t nLabelsB = *( std::max_element( segBBegin, segBEnd ) ) + 1;
+    size_t nLabelsA = *( std::max_element( segA.begin(), segA.end() ) ) + 1;
+    size_t nLabelsB = *( std::max_element( segB.begin(), segB.end() ) ) + 1;
 
     // init the contingency matrix 
-    size_t shape[] = {nLabelsA,nLabelsB};
-    contingencyTable.resize(shape, shape+2, 0.);
-
-    // compute the contingency matrix
-    ITERATOR_0 segA_it = segABegin;
-    ITERATOR_1 segB_it = segBBegin;
-    for( ; segA_it != segAEnd; segA_it++, segB_it++ )
-    {
-        Label0 i = *( segA_it );
-        Label1 j = *( segB_it );
-        contingencyTable(i,j)++;
-    }
+    size_t contingencyShape[] = {nLabelsA,nLabelsB};
+    contingencyTable.resize(contingencyShape, contingencyShape+2, 0.);
     
+    // compute the contingency matrix
+    tools::forEachCoordinate(shape, [&](const Coord & coord){
+        T labelA = segA(coord.begin());        
+        T labelB = segB(coord.begin());        
+        ++contingencyTable(labelA,labelB);
+    });
+
     // compute the sum of rows
     rowSum.assign( contingencyTable.shape(0), 0.);
-    for( size_t i = 1; i < rowSum.size(); i++ )
+    for( size_t i = 1; i < rowSum.size(); ++i )
     {
-        for( size_t j = 0; j < contingencyTable.shape(1); j++ )
+        for( size_t j = 0; j < contingencyTable.shape(1); ++j )
         {
             rowSum[i] += contingencyTable(i,j);
         }
@@ -133,9 +134,91 @@ void NeuroMetrics::computeContingecyTable(
     
     // compute the sum of cols
     colSum.assign(contingencyTable.shape(1), 0.);
-    for( size_t j = 1; j < colSum.size(); j++ )
+    for( size_t j = 1; j < colSum.size(); ++j )
     {
-        for( size_t i = 1; i < contingencyTable.shape(0); i++ )
+        for( size_t i = 1; i < contingencyTable.shape(0); ++i )
+        {
+            colSum[j] += contingencyTable(i,j);
+        }
+    }
+
+    hasContingencyTable = true;
+}
+
+    
+template<unsigned DIM, class T>
+void NeuroMetrics<DIM,T>::computeContingecyTable(
+        const andres::View<T> & segA,
+        const andres::View<T> & segB,
+        const int numberOfThreads
+        )
+{
+
+    typedef std::array<int64_t,DIM> Coord;
+    
+    n = 1;
+    Coord shape;
+    for(size_t d = 0; d < DIM; ++d) {
+        shape[d] = segA.shape(d);
+        n *= shape[d];
+    }
+
+    auto popt = tools::ParallelOptions(numberOfThreads);
+    tools::ThreadPool threadpool(popt);
+    size_t actualNumThreads = threadpool.nThreads();
+
+    // max element is super slow here for some reason...
+    T nLabelsA = tools::parallelMax<DIM>(segA, threadpool)+1; 
+    T nLabelsB = tools::parallelMax<DIM>(segB, threadpool)+1; 
+
+    // init the contingency matrix 
+    size_t contingencyShape[] = {nLabelsA,nLabelsB};
+    contingencyTable.resize(contingencyShape, contingencyShape+2, 0.);
+    
+    // parallel
+    std::vector<ContingencyTable> cTableThreadVec(actualNumThreads);
+    tools::parallel_foreach(threadpool, actualNumThreads,[&](int tid, int i){
+        cTableThreadVec[tid].resize(contingencyShape, contingencyShape+2, 0.);   
+    });
+
+    auto checkCoord = [&](const Coord & coordinate) {
+        for(int d = 0; d < DIM; ++d) {
+            if( coordinate[d] < 0 || coordinate[d] > shape[d]) {
+                std::cout << "DIM " << d << " out of range with " << coordinate[d] << std::endl;
+                throw std::runtime_error("Coordinate out of range");
+            }
+        }
+    };
+
+    tools::parallelForEachCoordinate(threadpool, shape, [&](const int tid, const Coord & coord){
+        checkCoord(coord);
+        auto & cTable = cTableThreadVec[tid];
+        T labelA = segA(coord.begin());
+        T labelB = segB(coord.begin());
+        ++cTable(labelA,labelB);
+    });
+    std::cout << "After Ctable" << std::endl;
+
+    for(int tid = 0; tid < actualNumThreads; ++tid)
+        contingencyTable += cTableThreadVec[tid];
+    std::cout << "After merge" << std::endl;
+
+    
+    // compute the sum of rows
+    rowSum.assign( contingencyTable.shape(0), 0.);
+    for( size_t i = 1; i < rowSum.size(); ++i )
+    {
+        for( size_t j = 0; j < contingencyTable.shape(1); ++j )
+        {
+            rowSum[i] += contingencyTable(i,j);
+        }
+    }
+    
+    // compute the sum of cols
+    colSum.assign(contingencyTable.shape(1), 0.);
+    for( size_t j = 1; j < colSum.size(); ++j )
+    {
+        for( size_t i = 1; i < contingencyTable.shape(0); ++i )
         {
             colSum[j] += contingencyTable(i,j);
         }
@@ -145,7 +228,8 @@ void NeuroMetrics::computeContingecyTable(
 }
 
 
-void NeuroMetrics::computeRandPrimitives()
+template<unsigned DIM, class T>
+void NeuroMetrics<DIM,T>::computeRandPrimitives()
 {
     double aux = 0.;
     for( size_t i = 1; i < contingencyTable.shape(0) ; i++)
@@ -181,7 +265,8 @@ void NeuroMetrics::computeRandPrimitives()
 }
 
 
-double NeuroMetrics::randIndex()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::randIndex()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -191,7 +276,8 @@ double NeuroMetrics::randIndex()
 }
 
 
-double NeuroMetrics::randPrecision()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::randPrecision()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -201,7 +287,8 @@ double NeuroMetrics::randPrecision()
 }
 
 
-double NeuroMetrics::randRecall()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::randRecall()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -211,7 +298,8 @@ double NeuroMetrics::randRecall()
 }
 
     
-double NeuroMetrics::randScore()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::randScore()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -221,7 +309,8 @@ double NeuroMetrics::randScore()
 }
 
 
-void NeuroMetrics::computeViPrimitives() {
+template<unsigned DIM, class T>
+void NeuroMetrics<DIM,T>::computeViPrimitives() {
     
     double aux = 0.;
     for( size_t i = 1; i < contingencyTable.shape(0) ; i++)
@@ -260,7 +349,8 @@ void NeuroMetrics::computeViPrimitives() {
     hasViPrimitives = true;
 }
 
-double NeuroMetrics::variationOfInformation()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::variationOfInformation()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -269,7 +359,8 @@ double NeuroMetrics::variationOfInformation()
     return viA + viB - 2. * viAB;
 }
 
-double NeuroMetrics::viPrecision()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::viPrecision()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -284,7 +375,8 @@ double NeuroMetrics::viPrecision()
     return ( viA + viB - viAB) / viA;
 }
 
-double NeuroMetrics::viRecall()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::viRecall()
 {
     if(!hasContingencyTable)
         throw std::runtime_error("Need to call computeContingencyTable first");
@@ -299,7 +391,8 @@ double NeuroMetrics::viRecall()
     return (viB + viA - viAB) / viB;
 }
 
-double NeuroMetrics::viScore()
+template<unsigned DIM, class T>
+double NeuroMetrics<DIM,T>::viScore()
 {
     double prec = viPrecision();
     double rec = viRecall();

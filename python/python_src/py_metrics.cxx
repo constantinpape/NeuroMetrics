@@ -2,27 +2,29 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include <NeuroMetrics/metrics.hxx>
-#include <NeuroMetrics/converter.hxx>
+#include <string>
+
+#include "NeuroMetrics/metrics.hxx"
+#include "NeuroMetrics/converter.hxx"
 
 namespace py = pybind11;
 
 namespace neurometrics {
 
 
-template<class T>
-void exportMetricsT(py::module & metricsModule){
+template<unsigned DIM, class T>
+void exportMetricsT(py::module & metricsModule, std::string & cls_name){
 
-    typedef NeuroMetrics Metrics;
+    typedef NeuroMetrics<DIM,T> Metrics;
 
-    py::class_<Metrics>(metricsModule,"Metrics")
+    py::class_<Metrics>(metricsModule,cls_name.c_str())
         .def(py::init<>())
         .def("computeContingencyTable",[](Metrics & self, 
-            andres::PyView<T,1> segA,
-            andres::PyView<T,1> segB){
+            andres::PyView<T,DIM> segA,
+            andres::PyView<T,DIM> segB){
                 {
                     py::gil_scoped_release allowThreads;
-                    self.computeContingecyTable(segA.begin(), segA.end(), segB.begin(), segB.end());
+                    self.computeContingecyTable(segA, segB);
                 }
         })
         .def("randIndex", &Metrics::randIndex)
@@ -40,8 +42,19 @@ void exportMetricsT(py::module & metricsModule){
 void exportMetrics(py::module & metricsModule) {
 
     //neurometrics::exportMetricsT<uint16_t>(metricsModule);
-    neurometrics::exportMetricsT<uint32_t>(metricsModule);
-    //neurometrics::exportMetricsT<uint64_t>(metricsModule);
+    std::string name = "Metrics1dUInt32";
+    neurometrics::exportMetricsT<1,uint32_t>(metricsModule,name);
+    name = "Metrics2dUInt32";
+    neurometrics::exportMetricsT<2,uint32_t>(metricsModule,name);
+    name = "Metrics3dUInt32";
+    neurometrics::exportMetricsT<3,uint32_t>(metricsModule,name);
+    
+    name = "Metrics1dUInt64";
+    neurometrics::exportMetricsT<1,uint64_t>(metricsModule,name);
+    name = "Metrics2dUInt64";
+    neurometrics::exportMetricsT<2,uint64_t>(metricsModule,name);
+    name = "Metrics3dUInt64";
+    neurometrics::exportMetricsT<3,uint64_t>(metricsModule,name);
 }
 
 
