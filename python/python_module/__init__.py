@@ -1,7 +1,7 @@
 from _NeuroMetrics import *
 import numpy as np
 
-def metrics(gt, seg, numberOfThreads = -1):
+def metrics(gt, seg):
     gtType  = gt.dtype
     segType = seg.dtype
     assert gtType == segType, "Inputs must have the same data type!"
@@ -28,5 +28,5 @@ def metrics(gt, seg, numberOfThreads = -1):
     else:
         raise AttributeError("Datatype %s not supported" % str(gtType))
 
-    m.computeContingencyTable(gt, seg, numberOfThreads)
+    m.computeContingencyTable(gt, seg )
     return m
