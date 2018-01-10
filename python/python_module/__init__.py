@@ -1,5 +1,7 @@
-from _NeuroMetrics import *
 import numpy as np
+
+from . _NeuroMetrics import *
+
 
 def metrics(gt, seg):
     gtType  = gt.dtype
@@ -9,24 +11,24 @@ def metrics(gt, seg):
     dim = gt.ndim
     if gtType == np.uint32:
         if dim == 1:
-            m = _NeuroMetrics.Metrics1dUInt32()
+            m = Metrics1dUInt32()
         elif dim == 2:
-            m = _NeuroMetrics.Metrics2dUInt32()
+            m = Metrics2dUInt32()
         elif dim == 3:
-            m = _NeuroMetrics.Metrics3dUInt32()
+            m = Metrics3dUInt32()
         else:
             raise AttributeError("Only up to 3 dimensional input is supported")
     elif gtType == np.uint64:
         if dim == 1:
-            m = _NeuroMetrics.Metrics1dUInt64()
+            m = Metrics1dUInt64()
         elif dim == 2:
-            m = _NeuroMetrics.Metrics2dUInt64()
+            m = Metrics2dUInt64()
         elif dim == 3:
-            m = _NeuroMetrics.Metrics3dUInt64()
+            m = Metrics3dUInt64()
         else:
             raise AttributeError("Only up to 3 dimensional input is supported")
     else:
         raise AttributeError("Datatype %s not supported" % str(gtType))
 
-    m.computeContingencyTable(gt, seg )
+    m.computeContingencyTable(gt, seg)
     return m

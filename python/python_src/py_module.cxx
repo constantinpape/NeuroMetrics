@@ -8,8 +8,9 @@ namespace neurometrics {
 
 }
 
-PYBIND11_PLUGIN(_NeuroMetrics) {
-    py::module metricsModule("_NeuroMetrics", "Pythonbindings for Neuro Metrics.");
+
+PYBIND11_MODULE(_NeuroMetrics, metricsModule) {
+    metricsModule.doc() = "Pythonbindings for Neuro Metrics.";
 
     using namespace neurometrics;
     exportMetrics(metricsModule);

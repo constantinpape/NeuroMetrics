@@ -188,11 +188,11 @@ namespace pybind11
                 return conv.cast(src.py_array, policy, parent);
             }
 
-            PYBIND11_TYPE_CASTER(ViewType, _("array<") + value_conv::name() + _(">"));
+            PYBIND11_TYPE_CASTER(ViewType, _("array<") + value_conv::name + _(">"));
         };
 
-        template <typename Type, size_t DIM, bool AUTO_CAST_TYPE> 
-        struct type_caster<andres::PyView<Type, DIM, AUTO_CAST_TYPE> > 
+        template <typename Type, size_t DIM, bool AUTO_CAST_TYPE>
+        struct type_caster<andres::PyView<Type, DIM, AUTO_CAST_TYPE> >
             : pymarray_caster<Type,DIM, AUTO_CAST_TYPE> {
         };
 
