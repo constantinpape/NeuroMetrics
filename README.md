@@ -1,3 +1,7 @@
+# NOTE
+
+This functionality was migrated to [nifty](https://github.com/DerThorsten/nifty)
+
 # NeuroMetrics
 
 This repo bundles different metrics for evaluating segmentations (especially for neuron segmentation).
